@@ -4,6 +4,20 @@
 > *Target Track:* **Track 1: Build It** — Bharat Builds Tour 2026 (*First Commit Hackathon* by WeMakeDevs × AWS Builder Center)  
 > *Stack:* **AWS Cedar** (`cedarpy`) • **AWS Strands Agents SDK** (`strands-agents`) • **OpenSearch** (`opensearch-py`) • **FastAPI** • **React 19** • **Monaco Editor**
 
+> **🚀 Live Demo:** [sovereign-guard-sand.vercel.app](https://sovereign-guard-sand.vercel.app) — running on Vercel, fully interactive, no AWS account or local install required.
+
+---
+
+## 0. Try It Now (No Install)
+
+The full Command Center UI is deployed to Vercel as a serverless FastAPI app:
+
+👉 **https://sovereign-guard-sand.vercel.app**
+
+The Vercel runtime runs the pure-Python semantic mirror of `policies/agent_rules.cedar`
+(verdicts match the Rust core exactly for the shipped policies). To use the
+native Rust engine and the full Strands + Ollama loop, run `./run.sh` locally.
+
 ---
 
 ## 1. The Crisis: The "Agentic Shadow IT" Problem
@@ -202,5 +216,64 @@ tests/test_sovereign_guard.py::test_policy_hot_reload PASSED             [100%]
 ---
 
 
-## 7. License
+## 7. 3-Minute Demo Playbook
+
+| Time | Script / Action | Visual on Screen |
+| :--- | :--- | :--- |
+| **0:00 – 0:30** | *"Every developer is starting to run local AI agents using tools. But how do you stop an agent from stealing your private `.env` or reading confidential files during a prompt injection? System prompts can always be jailbroken. Meet SovereignGuard."* | Show clean SovereignGuard UI with live Cedar policy active. |
+| **0:30 – 1:15** | Click the preset: **"Exfiltrate AWS Secrets (.env)"**. The local Strands agent plans the tool call `secure_read_file('/app/.env')`. | **Visual Impact:** Center panel flashes a bright red security barrier: **`🔴 CEDAR DENIED in 0.6ms`**. The agent outputs: *"Access blocked by Cedar security rule."* |
+| **1:15 – 2:00** | *"Now let's see a legitimate query."* Click preset: **"ECS Deployment Guide Search"**. | Center panel flashes **`🟢 CEDAR PERMITTED`** with confetti. Local OpenSearch returns vector chunks, and Strands answers accurately. |
+| **2:00 – 2:30** | *"Want to change security rules on the fly?"* In the Monaco editor panel, comment out a forbid rule or add a new role restriction. Hit **"Hot Reload"**. Re-run the test: the agent's permissions change instantly with zero restarts. | Live Monaco editor showing Cedar syntax highlighting and immediate hot-reloading. |
+| **2:30 – 3:00** | *"SovereignGuard bridges the gap between probabilistic AI and deterministic security. Built with the AWS Strands Agents SDK, AWS Cedar, and OpenSearch. 100% open-source, runs on localhost, zero cloud bills. Thank you!"* | Bring up the architecture diagram showing Cedar + Strands at the core. |
+
+---
+
+## 8. Hackathon Submission Copy
+
+**Title:**
+**SovereignGuard — Zero-Trust Policy Gateway for Local Autonomous AI Agents**
+
+**Short Description:**
+Deterministic mathematical authorization for non-deterministic AI agents. SovereignGuard pairs
+the AWS Strands Agents SDK with the AWS Cedar Policy Engine and OpenSearch to physically prevent
+autonomous agents from leaking local secrets or executing unauthorized actions.
+
+**Inspiration:**
+As autonomous AI agents gain tool access on local workstations, prompt injections become dangerous
+physical security threats. Telling an LLM not to read `.env` files fails because models are
+non-deterministic. We wanted to build a provable, mathematically verified security boundary that
+physically blocks rogue agent actions.
+
+**What it does:**
+SovereignGuard acts as an intelligent proxy between local AI agents and system tools. When an
+agent running on the AWS Strands Agents SDK plans a tool call, SovereignGuard intercepts the
+request and evaluates it against AWS Cedar policies in under a millisecond. If Cedar returns
+`DENY`, the tool call is terminated immediately with an immutable audit record.
+
+**How we built it:**
+- **AWS Cedar (`cedarpy`)** — Compiled policy-as-code engine running via Python Rust bindings
+  (< 0.2 ms per evaluation). On serverless targets where the Rust binding cannot be installed
+  (e.g. Vercel), SovereignGuard transparently switches to a pure-Python semantic mirror of
+  `policies/agent_rules.cedar` that produces identical verdicts.
+- **AWS Strands Agents SDK (`strands-agents`)** — Orchestrates the autonomous agent reasoning
+  and tool loop. A graceful deterministic scenario router takes over when the SDK or Ollama
+  daemon is offline so the demo is always resilient.
+- **OpenSearch (Local Docker)** — Vector store indexing enterprise documents with classification
+  metadata. Document-Level Security (DLS) attributes flow into Cedar so each chunk is gated by
+  the same policies as the file system.
+- **SAM Local / LocalStack** — Simulates local enterprise microservices without cloud connectivity.
+- **FastAPI + WebSocket** — High-speed streaming gateway. The REST fallback (`POST /api/agent/run`)
+  is used automatically by the UI on serverless targets where WebSockets are unavailable.
+- **React 19 + Vite + Tailwind v4 + Monaco Editor** — Command center with live policy editor
+  and real-time security intercept animations (canvas-confetti on PERMIT, red barrier glow
+  on DENY).
+
+**What we learned:**
+How to use AWS Cedar's formal logic (`permit` and `forbid` rules) to solve real-world AI safety
+problems, and how the new AWS Strands Agents SDK makes tool-driven autonomous reasoning accessible
+on local models without cloud bills.
+
+---
+
+## 9. License
 Apache 2.0. Built for the Bharat Builds Tour 2026.

@@ -6,6 +6,10 @@ import { InterceptorFeed } from './components/InterceptorFeed';
 import type { CedarDecision } from './components/InterceptorFeed';
 import { MonacoEditorPanel } from './components/MonacoEditorPanel';
 import { ShieldCheck } from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+type EngineKind = 'rust' | 'python';
+type Deployment = 'vercel' | 'local';
 
 export const App: React.FC = () => {
   const [systemArmed] = useState(true);
@@ -18,10 +22,12 @@ export const App: React.FC = () => {
   const [isReloading, setIsReloading] = useState(false);
   const [reloadStatus, setReloadStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [cedarLatency, setCedarLatency] = useState<number>(0.16);
+  const [engineKind, setEngineKind] = useState<EngineKind>('rust');
+  const [deployment, setDeployment] = useState<Deployment>('local');
 
   const socketRef = useRef<WebSocket | null>(null);
 
-  // Play synthetic Web Audio alert tones
+  // Play synthetic Web Audio alert tones + canvas-confetti on PERMIT verdicts
   const playAudioCue = (type: 'DENY' | 'PERMIT') => {
     if (!soundEnabled) return;
     try {
@@ -47,6 +53,18 @@ export const App: React.FC = () => {
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.2);
+        try {
+          confetti({
+            particleCount: 70,
+            spread: 70,
+            startVelocity: 25,
+            origin: { y: 0.35 },
+            colors: ['#10b981', '#22d3ee', '#34d399'],
+            scalar: 0.7,
+          });
+        } catch {
+          // confetti may not be available in some environments; harmless.
+        }
       }
     } catch (e) {
       // AudioContext suppressed before user gesture
@@ -57,13 +75,25 @@ export const App: React.FC = () => {
   useEffect(() => {
     const fetchPolicies = async () => {
       try {
-        const res = await fetch('/api/policies');
-        if (res.ok) {
-          const data = await res.json();
+        const [policiesRes, healthRes] = await Promise.all([
+          fetch('/api/policies'),
+          fetch('/api/health'),
+        ]);
+        if (policiesRes.ok) {
+          const data = await policiesRes.json();
           setPolicyCode(data.policies);
         }
+        if (healthRes.ok) {
+          const data = await healthRes.json();
+          if (data.cedar_engine_kind === 'python' || data.cedar_engine_kind === 'rust') {
+            setEngineKind(data.cedar_engine_kind);
+          }
+          if (data.deployment === 'vercel' || data.deployment === 'local') {
+            setDeployment(data.deployment);
+          }
+        }
       } catch (err) {
-        console.error('Failed to load policies:', err);
+        console.error('Failed to load initial state:', err);
       }
     };
     fetchPolicies();
@@ -196,6 +226,8 @@ export const App: React.FC = () => {
         permittedCount={permittedCount}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
+        engineKind={engineKind}
+        deployment={deployment}
       />
 
       {/* Main Command Center Surface */}
