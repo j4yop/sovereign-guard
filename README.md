@@ -166,7 +166,7 @@ when {
 
 ### Step 1: Clone and Start
 ```bash
-git clone https://github.com/jaygopal/sovereign-guard.git
+git clone https://github.com/j4yop/sovereign-guard.git
 cd sovereign-guard
 
 # One-command boot for both backend & frontend
