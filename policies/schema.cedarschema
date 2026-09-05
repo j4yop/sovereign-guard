@@ -1,0 +1,26 @@
+entity Role;
+entity Agent in [Role];
+entity File {
+    tag: String,
+    classification: String,
+    path: String
+};
+entity APIEndpoint {
+    service: String,
+    mutating: Bool
+};
+
+action ReadFile appliesTo {
+    principal: [Agent],
+    resource: [File]
+};
+
+action SearchDocs appliesTo {
+    principal: [Agent],
+    resource: [File]
+};
+
+action InvokeAPI appliesTo {
+    principal: [Agent],
+    resource: [APIEndpoint]
+};

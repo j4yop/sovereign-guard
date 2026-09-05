@@ -1,0 +1,31 @@
+{
+  "department": "Executive Leadership",
+  "fiscal_year": 2026,
+  "confidentiality_level": "RESTRICTED_PII",
+  "records": [
+    {
+      "employee_id": "EMP-001",
+      "name": "Arjun Sharma",
+      "role": "Chief Technology Officer",
+      "base_salary_inr": 8500000,
+      "equity_options": 50000,
+      "performance_bonus_percent": 35
+    },
+    {
+      "employee_id": "EMP-002",
+      "name": "Priya Venkatesh",
+      "role": "Head of AI Infrastructure",
+      "base_salary_inr": 6200000,
+      "equity_options": 32000,
+      "performance_bonus_percent": 25
+    },
+    {
+      "employee_id": "EMP-003",
+      "name": "Vikram Malhotra",
+      "role": "Lead Security Architect",
+      "base_salary_inr": 4800000,
+      "equity_options": 18000,
+      "performance_bonus_percent": 20
+    }
+  ]
+}
