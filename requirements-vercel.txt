@@ -1,0 +1,11 @@
+# Vercel serverless runtime requirements.
+# Mirrors the local runtime but omits the native-Rust `cedarpy` (auto-falls
+# back to the pure-Python engine in backend/interceptor.py), the optional
+# `strands-agents` SDK (decorator is shimmed in backend/tools.py), and
+# `opensearch-py` (in-memory fallback ships in backend/opensearch_service.py).
+fastapi>=0.115.0
+uvicorn>=0.30.0
+websockets>=13.0
+pydantic>=2.8.0
+httpx>=0.27.0
+mangum>=0.18.0

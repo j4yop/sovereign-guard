@@ -1,7 +1,17 @@
 import os
 import json
-from typing import Dict, Any, List
-from strands import tool
+from typing import Dict, Any, List, Callable
+try:
+    from strands import tool  # type: ignore
+except Exception:  # pragma: no cover - strands optional
+    def tool(*dargs, **dkwargs) -> Callable:  # type: ignore
+        """A no-op decorator that mimics `strands.tool` when the SDK is absent."""
+        def _wrap(fn):
+            return fn
+        # Support both `@tool` and `@tool(name=..., description=...)` usage.
+        if dargs and callable(dargs[0]) and not dkwargs:
+            return dargs[0]
+        return _wrap
 from backend.interceptor import SovereignInterceptor
 from backend.opensearch_service import OpenSearchService
 
