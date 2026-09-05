@@ -60,6 +60,14 @@ class OpenSearchService:
             },
             {
                 "id": "doc-003",
+                "title": "Sovereign Platform Architecture Overview",
+                "path": "docs/architecture.md",
+                "classification": "EngineeringDocs",
+                "tag": "architecture",
+                "content": "SovereignGuard sits between the local autonomous agent runtime and protected host resources. FastAPI Gateway exposes REST + WebSocket. SovereignInterceptor wraps cedarpy.is_authorized and provides a pure-Python semantic mirror. Tool wrappers route every invocation through the Cedar engine. The LLM never sees a raw tool return value that bypassed Cedar."
+            },
+            {
+                "id": "doc-004",
                 "title": "Executive Compensation & Equity Ledger 2026",
                 "path": "payroll_2026.json",
                 "classification": "Restricted",

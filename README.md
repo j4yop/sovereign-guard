@@ -6,6 +6,8 @@
 
 > **🚀 Live Demo:** [sovereign-guard-sand.vercel.app](https://sovereign-guard-sand.vercel.app) — running on Vercel, fully interactive, no AWS account or local install required.
 
+> **🤖 AI tool disclosure:** The Cedar policy file, FastAPI handlers, the React/Vite frontend, and the deployment configuration in this repository were written by the author with assistance from an AI coding assistant (used for code generation, refactoring, and documentation). All architecture, policy logic, and demo decisions are the author's. Per the hackathon rules, AI coding tools are allowed provided they are named in the writeup.
+
 ---
 
 ## 0. Try It Now (No Install)

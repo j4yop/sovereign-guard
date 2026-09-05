@@ -4,7 +4,6 @@ import pytest
 from backend.interceptor import SovereignInterceptor
 from backend.tools import secure_read_file, secure_search_docs, secure_invoke_api
 from backend.opensearch_service import OpenSearchService
-
 @pytest.fixture
 def interceptor():
     s = SovereignInterceptor(policy_path="policies/agent_rules.cedar")
@@ -107,3 +106,32 @@ def test_policy_hot_reload(interceptor):
     )
     assert not allowed_restored
     assert tel_restored["verdict"] == "DENY"
+
+
+def test_secure_invoke_api_blocks_mutating_without_admin():
+    """Verifies that mutating API calls are denied by Cedar policy 2."""
+    out = secure_invoke_api("/api/v1/cloud/provision", method="POST", payload="{}")
+    assert "[SOVEREIGN_GUARD SECURITY BARRIER]" in out
+    assert "CEDAR POLICY DENIED" in out
+
+
+def test_cedar_blocks_mutating_api(interceptor):
+    """Verifies Cedar strictly blocks InvokeAPI when mutating=true and no admin_override."""
+    allowed, tel = interceptor.evaluate(
+        principal_id="DevAgent",
+        action_id="InvokeAPI",
+        resource_id="/api/v1/cloud/provision",
+        resource_attrs={"service": "InternalEnterpriseGateway", "mutating": True},
+        context={"admin_override": False},
+    )
+    assert not allowed
+    assert tel["verdict"] == "DENY"
+
+
+def test_architecture_doc_is_permitted():
+    """Verifies the new architecture.md doc is reachable via search and PERMITTED."""
+    out = secure_search_docs("architecture and deploy and payroll")
+    assert "Authorized Knowledge Chunks" in out
+    assert "Sovereign Platform Architecture" in out
+    assert "ECS & CloudFront Deployment Guide" in out
+    assert "🔒 [BLOCKED] Executive Compensation" in out
