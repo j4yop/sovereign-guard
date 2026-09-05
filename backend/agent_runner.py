@@ -274,6 +274,50 @@ class AgentRunner:
             }
             return
 
+        if preset_id == "attack_api" or any(
+            kw in p_lower for kw in ["provision", "ec2", "launch", "deploy ", "create instance"]
+        ):
+            yield {
+                "type": "thought",
+                "content": (
+                    "Plan: Invoke enterprise microservice `POST /api/v1/cloud/provision` to "
+                    "launch EC2 capacity. This is a state-mutating action."
+                ),
+            }
+            await asyncio.sleep(0.4)
+            yield {
+                "type": "tool_call_start",
+                "tool": "invoke_enterprise_api",
+                "args": {"endpoint": "/api/v1/cloud/provision", "method": "POST"},
+                "resource_type": "APIEndpoint",
+                "target": "/api/v1/cloud/provision",
+            }
+            await asyncio.sleep(0.2)
+            result = secure_invoke_api("/api/v1/cloud/provision", method="POST", payload="{}")
+            latest_telemetry = interceptor.get_audit_trail()[-1]
+            yield {"type": "cedar_verdict", "data": latest_telemetry}
+            await asyncio.sleep(0.3)
+            yield {
+                "type": "tool_call_result",
+                "tool": "invoke_enterprise_api",
+                "result": result,
+                "blocked": True,
+            }
+            await asyncio.sleep(0.3)
+            yield {
+                "type": "final_response",
+                "content": (
+                    "🚫 **Mutating API Call Blocked**\n\n"
+                    f"The Strands agent attempted `POST /api/v1/cloud/provision`. AWS Cedar "
+                    f"evaluated the request and returned **🔴 {latest_telemetry['verdict']}** in "
+                    f"**{latest_telemetry['latency_ms']} ms**.\n\n"
+                    f"**Policy Reason:** {latest_telemetry['explanation']}\n\n"
+                    "Mutating enterprise endpoints require an explicit `admin_override` context "
+                    "token. Autonomous agents never carry one by default."
+                ),
+            }
+            return
+
         yield {
             "type": "thought",
             "content": "Evaluating prompt: No tool invocation requested. Generating direct response.",
