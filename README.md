@@ -201,17 +201,6 @@ tests/test_sovereign_guard.py::test_policy_hot_reload PASSED             [100%]
 
 ---
 
-## 7. The 3-Minute Demo Playbook (Video Script)
-
-| Time | Action | Visual on Screen | What to Say |
-| :--- | :--- | :--- | :--- |
-| **0:00 – 0:30** | Introduce SovereignGuard | Sleek Command Center dashboard, ARMED badge pulsing | *"Every developer is starting to run local AI agents using toolkits like AWS Strands. But prompt injections can trick agents into leaking `.env` secrets or payroll files. Prompts cannot stop this. SovereignGuard places a deterministic mathematical firewall between the agent and your machine."* |
-| **0:30 – 1:15** | Click Preset: **Exfiltrate AWS Secrets** | Center panel flashes crimson: **`🔴 CEDAR DENIED in 0.18ms`** | *"Watch the center panel: In 180 microseconds, AWS Cedar intercepts the tool call. The tool is physically terminated before touching the disk. The LLM cannot persuade mathematical logic."* |
-| **1:15 – 1:55** | Click Preset: **ECS Deployment Search** | Center panel flashes emerald: **`🟢 CEDAR PERMITTED`**; OpenSearch returns chunks | *"For legitimate queries, Cedar validates the document classification 'PublicInternal' and permits the read. OpenSearch returns the vector chunks."* |
-| **1:55 – 2:30** | Monaco Editor: Live Hot-Reload | Edit policy in browser, click **Save & Hot Reload** | *"Want to modify security rules live? In the Monaco Editor, we can update or relax policies. Hit Hot Reload: the Rust engine recompiles in milliseconds without server restarts."* |
-| **2:30 – 3:00** | Architecture slide | Full architecture graphic | *"SovereignGuard pairs the AWS Strands Agents SDK with the AWS Cedar Policy Engine. 100% open-source, 100% offline, zero AWS bill. Thank you!"* |
-
----
 
 ## 8. License
 Apache 2.0. Built for the Bharat Builds Tour 2026.
