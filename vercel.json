@@ -3,7 +3,6 @@
   "version": 2,
   "buildCommand": "cd frontend && npm install --no-audit --no-fund && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "pip install --no-cache-dir -r requirements-vercel.txt",
   "framework": null,
   "functions": {
     "api/index.py": {
