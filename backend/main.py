@@ -41,8 +41,10 @@ async def health_check():
     return {
         "status": "ARMED",
         "service": "SovereignGuard Gateway",
-        "cedar_engine": "Active (Rust Native)",
+        "cedar_engine": "Active (Rust Native)" if getattr(interceptor, "engine", "rust") == "rust" else "Active (Python Semantic Mirror)",
+        "cedar_engine_kind": getattr(interceptor, "engine", "rust"),
         "opensearch_connected": opensearch.is_connected,
+        "deployment": "vercel" if os.environ.get("VERCEL") else "local",
         "timestamp": time.time()
     }
 
@@ -69,11 +71,22 @@ async def reload_policies(payload: PolicyUpdateRequest):
             resource_id="test.txt",
             resource_attrs={"tag": "test", "classification": "PublicInternal", "path": "test.txt"}
         )
+        engine = getattr(interceptor, "engine", "rust")
+        message = (
+            "Cedar policies successfully hot-reloaded and verified by Rust core."
+            if engine == "rust"
+            else (
+                "Cedar policy source accepted. Note: the serverless Python engine "
+                "uses a semantic mirror of the shipped policy file; custom "
+                "edits are stored but evaluation follows the canonical ruleset."
+            )
+        )
         return {
             "success": True,
-            "message": "Cedar policies successfully hot-reloaded and verified by Rust core.",
+            "message": message,
             "dry_run_verdict": diag["verdict"],
-            "latency_ms": diag["latency_ms"]
+            "latency_ms": diag["latency_ms"],
+            "engine": engine,
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cedar policy compilation error: {str(e)}")

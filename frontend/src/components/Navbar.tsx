@@ -8,6 +8,8 @@ interface NavbarProps {
   permittedCount: number;
   soundEnabled: boolean;
   onToggleSound: () => void;
+  engineKind: 'rust' | 'python';
+  deployment: 'vercel' | 'local';
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +19,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   permittedCount,
   soundEnabled,
   onToggleSound,
+  engineKind,
+  deployment,
 }) => {
   return (
     <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md px-6 py-3.5 sticky top-0 z-50">
@@ -60,10 +64,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Cpu className="w-3.5 h-3.5 text-cyan-400" />
             AWS Strands SDK
           </span>
-          <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-1.5">
+          <span
+            className={`px-2.5 py-1 rounded border flex items-center gap-1.5 ${
+              engineKind === 'rust'
+                ? 'bg-slate-900 border-slate-800 text-slate-300'
+                : 'bg-cyan-950/40 border-cyan-700/50 text-cyan-200'
+            }`}
+            title={
+              engineKind === 'rust'
+                ? 'AWS Cedar Rust native binding (cedarpy) is enforcing policies.'
+                : 'Serverless Python semantic mirror of policies/agent_rules.cedar.'
+            }
+          >
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            AWS Cedar (Rust Native)
+            AWS Cedar
+            <span className="text-[9px] uppercase font-bold ml-1 opacity-80">
+              {engineKind === 'rust' ? 'Rust Native' : 'Python Mirror'}
+            </span>
           </span>
+          {deployment === 'vercel' && (
+            <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Live on Vercel
+            </span>
+          )}
           <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-1.5">
             <Activity className="w-3.5 h-3.5 text-emerald-400" />
             OpenSearch DLS
