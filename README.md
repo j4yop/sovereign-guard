@@ -202,5 +202,5 @@ tests/test_sovereign_guard.py::test_policy_hot_reload PASSED             [100%]
 ---
 
 
-## 8. License
+## 7. License
 Apache 2.0. Built for the Bharat Builds Tour 2026.
