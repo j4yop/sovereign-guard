@@ -11,7 +11,13 @@ from backend.tools import interceptor, secure_read_file, secure_search_docs, sec
 log = logging.getLogger("sovereign.agent")
 
 try:
-    from strands_agents import Agent as _StrandsAgent  # type: ignore
+    # The PyPI package `strands-agents` exposes its SDK via the `strands`
+    # module: `from strands import Agent`. Try that first; keep the legacy
+    # module path as a fallback for older installs.
+    try:
+        from strands import Agent as _StrandsAgent  # type: ignore
+    except ImportError:
+        from strands_agents import Agent as _StrandsAgent  # type: ignore
     _STRANDS_AVAILABLE = True
 except Exception:
     _StrandsAgent = None  # type: ignore
@@ -61,11 +67,28 @@ class AgentRunner:
         if not _STRANDS_AVAILABLE:
             return None
         try:
+            model = None
+            model_name = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
+            # Prefer the OpenAI-compatible Ollama endpoint when the optional
+            # OpenAI provider extra is installed; otherwise fall back to the
+            # bare model name (works when STRANDS is configured for Bedrock
+            # or another default provider).
+            try:
+                from strands.models.openai import OpenAIModel  # type: ignore
+                model = OpenAIModel(
+                    model_id=model_name,
+                    client_args={
+                        "base_url": f"{self.ollama_url}/v1",
+                        "api_key": "ollama",
+                    },
+                )
+            except Exception:
+                model = model_name
             return _StrandsAgent(
                 name="SovereignAgent",
                 description="Local autonomous agent guarded by AWS Cedar policies.",
                 tools=[secure_read_file, secure_search_docs, secure_invoke_api],
-                model=os.environ.get("OLLAMA_MODEL", "llama3.2:3b"),
+                model=model,
             )
         except Exception as e:
             log.warning("Failed to construct Strands agent: %s", e)
@@ -133,6 +156,27 @@ class AgentRunner:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         p_lower = prompt.lower()
 
+        # Absolute precedence for explicit preset ids so that keyword
+        # overlaps between preset prompts can never hijack routing
+        # (e.g. the attack_api preset prompt contains the word "api",
+        # which otherwise matches the valid_search keyword list).
+        if preset_id == "attack_env":
+            async for ev in self._scenario_read_env(prompt):
+                yield ev
+            return
+        if preset_id == "attack_payroll":
+            async for ev in self._scenario_read_payroll(prompt):
+                yield ev
+            return
+        if preset_id == "attack_api":
+            async for ev in self._scenario_invoke_api(prompt):
+                yield ev
+            return
+        if preset_id == "valid_search":
+            async for ev in self._scenario_search_docs(prompt):
+                yield ev
+            return
+
         yield {
             "type": "thought",
             "content": (
@@ -142,180 +186,30 @@ class AgentRunner:
         }
         await asyncio.sleep(0.3)
 
-        if preset_id == "attack_env" or any(
-            kw in p_lower for kw in [".env", "credential", "secret", "aws key"]
-        ):
-            yield {
-                "type": "thought",
-                "content": (
-                    "Plan: Invoke disk utility tool `read_file` on target `/app/.env` to retrieve "
-                    "system configuration and API credentials."
-                ),
-            }
-            await asyncio.sleep(0.4)
-            yield {
-                "type": "tool_call_start",
-                "tool": "read_file",
-                "args": {"file_path": "/app/.env"},
-                "resource_type": "File",
-                "target": "/app/.env",
-            }
-            await asyncio.sleep(0.2)
-            result = secure_read_file("/app/.env")
-            latest_telemetry = interceptor.get_audit_trail()[-1]
-            yield {"type": "cedar_verdict", "data": latest_telemetry}
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "tool_call_result",
-                "tool": "read_file",
-                "result": result,
-                "blocked": True,
-            }
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "final_response",
-                "content": (
-                    "⚠️ **Security Violation Detected**\n\n"
-                    "I planned a tool invocation to read `/app/.env`, but the **AWS Cedar Policy "
-                    "Engine** intercepted and physically aborted the operation in "
-                    f"**{latest_telemetry['latency_ms']} ms**.\n\n"
-                    f"**Policy Reason:** {latest_telemetry['explanation']}\n\n"
-                    "Under zero-trust governance rules, local agents cannot access secret keys "
-                    "or environment credentials."
-                ),
-            }
+        # Free-form prompts: keyword heuristics. Mutating-API intent is
+        # checked BEFORE the documentation-search keywords, because attack
+        # prompts ("call ... POST /api/v1/cloud/provision ...") also contain
+        # the word "api" which would otherwise route to the search branch.
+        if any(kw in p_lower for kw in ["provision", "ec2", "launch", "create instance"]):
+            async for ev in self._scenario_invoke_api(prompt):
+                yield ev
             return
 
-        if preset_id == "attack_payroll" or any(
-            kw in p_lower for kw in ["payroll", "salary", "compensation"]
+        if any(
+            kw in p_lower
+            for kw in [".env", "credential", "secret", "aws key", "payroll", "salary", "compensation"]
         ):
-            yield {
-                "type": "thought",
-                "content": (
-                    "Plan: Query file system for corporate compensation records "
-                    "(`payroll_2026.json`) to satisfy the user inquiry."
-                ),
-            }
-            await asyncio.sleep(0.4)
-            yield {
-                "type": "tool_call_start",
-                "tool": "read_file",
-                "args": {"file_path": "payroll_2026.json"},
-                "resource_type": "File",
-                "target": "payroll_2026.json",
-            }
-            await asyncio.sleep(0.2)
-            result = secure_read_file("payroll_2026.json")
-            latest_telemetry = interceptor.get_audit_trail()[-1]
-            yield {"type": "cedar_verdict", "data": latest_telemetry}
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "tool_call_result",
-                "tool": "read_file",
-                "result": result,
-                "blocked": True,
-            }
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "final_response",
-                "content": (
-                    "🔒 **Access Denied by Policy Engine**\n\n"
-                    f"Action `ReadFile` on `payroll_2026.json` was evaluated by AWS Cedar and "
-                    f"rejected with verdict **🔴 {latest_telemetry['verdict']}** in "
-                    f"**{latest_telemetry['latency_ms']} ms**.\n\n"
-                    f"**Explanation:** {latest_telemetry['explanation']}\n"
-                    "Autonomous agents lack clearance for restricted executive PII data."
-                ),
-            }
+            if any(kw in p_lower for kw in ["payroll", "salary", "compensation"]):
+                async for ev in self._scenario_read_payroll(prompt):
+                    yield ev
+            else:
+                async for ev in self._scenario_read_env(prompt):
+                    yield ev
             return
 
-        if preset_id == "valid_search" or any(
-            kw in p_lower for kw in ["deploy", "doc", "guide", "api", "architecture"]
-        ):
-            yield {
-                "type": "thought",
-                "content": (
-                    f"Plan: Query OpenSearch vector index with search parameter: '{prompt}' to "
-                    "find relevant architectural guidance."
-                ),
-            }
-            await asyncio.sleep(0.4)
-            yield {
-                "type": "tool_call_start",
-                "tool": "search_knowledge_base",
-                "args": {"query": prompt},
-                "resource_type": "KnowledgeBase",
-                "target": "opensearch:enterprise_knowledge",
-            }
-            await asyncio.sleep(0.2)
-            result = secure_search_docs(prompt)
-            latest_telemetry = interceptor.get_audit_trail()[-1]
-            yield {"type": "cedar_verdict", "data": latest_telemetry}
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "tool_call_result",
-                "tool": "search_knowledge_base",
-                "result": result,
-                "blocked": False,
-            }
-            await asyncio.sleep(0.4)
-            yield {
-                "type": "final_response",
-                "content": (
-                    "✅ **Authorized Information Retrieved**\n\n"
-                    f"The tool request was approved by the AWS Cedar Engine (**🟢 PERMIT** in "
-                    f"**{latest_telemetry['latency_ms']} ms**).\n\n"
-                    "### Deployment Overview:\n"
-                    "- Internal services must deploy via multi-arch Docker containers to "
-                    "**AWS ECS Fargate** behind private Application Load Balancers.\n"
-                    "- AWS WAF and CodeDeploy blue/green traffic shifting are active.\n"
-                    "- Health check endpoint `/healthz` must return HTTP 200 within 45s."
-                ),
-            }
-            return
-
-        if preset_id == "attack_api" or any(
-            kw in p_lower for kw in ["provision", "ec2", "launch", "deploy ", "create instance"]
-        ):
-            yield {
-                "type": "thought",
-                "content": (
-                    "Plan: Invoke enterprise microservice `POST /api/v1/cloud/provision` to "
-                    "launch EC2 capacity. This is a state-mutating action."
-                ),
-            }
-            await asyncio.sleep(0.4)
-            yield {
-                "type": "tool_call_start",
-                "tool": "invoke_enterprise_api",
-                "args": {"endpoint": "/api/v1/cloud/provision", "method": "POST"},
-                "resource_type": "APIEndpoint",
-                "target": "/api/v1/cloud/provision",
-            }
-            await asyncio.sleep(0.2)
-            result = secure_invoke_api("/api/v1/cloud/provision", method="POST", payload="{}")
-            latest_telemetry = interceptor.get_audit_trail()[-1]
-            yield {"type": "cedar_verdict", "data": latest_telemetry}
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "tool_call_result",
-                "tool": "invoke_enterprise_api",
-                "result": result,
-                "blocked": True,
-            }
-            await asyncio.sleep(0.3)
-            yield {
-                "type": "final_response",
-                "content": (
-                    "🚫 **Mutating API Call Blocked**\n\n"
-                    f"The Strands agent attempted `POST /api/v1/cloud/provision`. AWS Cedar "
-                    f"evaluated the request and returned **🔴 {latest_telemetry['verdict']}** in "
-                    f"**{latest_telemetry['latency_ms']} ms**.\n\n"
-                    f"**Policy Reason:** {latest_telemetry['explanation']}\n\n"
-                    "Mutating enterprise endpoints require an explicit `admin_override` context "
-                    "token. Autonomous agents never carry one by default."
-                ),
-            }
+        if any(kw in p_lower for kw in ["deploy", "doc", "guide", "architecture"]):
+            async for ev in self._scenario_search_docs(prompt):
+                yield ev
             return
 
         yield {
@@ -332,3 +226,187 @@ class AgentRunner:
                 "`payroll_2026.json`, or searching engineering docs!"
             ),
         }
+
+    # ------------------------------------------------------------------
+    # Individual scenario generators (shared by preset + keyword routing)
+    # ------------------------------------------------------------------
+
+    async def _scenario_read_env(self, prompt: str) -> AsyncGenerator[Dict[str, Any], None]:
+        yield {
+            "type": "thought",
+            "content": (
+                "Plan: Invoke disk utility tool `read_file` on target `/app/.env` to retrieve "
+                "system configuration and API credentials."
+            ),
+        }
+        await asyncio.sleep(0.4)
+        yield {
+            "type": "tool_call_start",
+            "tool": "read_file",
+            "args": {"file_path": "/app/.env"},
+            "resource_type": "File",
+            "target": "/app/.env",
+        }
+        await asyncio.sleep(0.2)
+        result = secure_read_file("/app/.env")
+        latest_telemetry = interceptor.get_audit_trail()[-1]
+        yield {"type": "cedar_verdict", "data": latest_telemetry}
+        await asyncio.sleep(0.3)
+        yield {
+            "type": "tool_call_result",
+            "tool": "read_file",
+            "result": result,
+            "blocked": not latest_telemetry["allowed"],
+        }
+        await asyncio.sleep(0.3)
+        yield {
+            "type": "final_response",
+            "content": (
+                "⚠️ **Security Violation Detected**\n\n"
+                "I planned a tool invocation to read `/app/.env`, but the **AWS Cedar Policy "
+                "Engine** intercepted and physically aborted the operation in "
+                f"**{latest_telemetry['latency_ms']} ms**.\n\n"
+                f"**Policy Reason:** {latest_telemetry['explanation']}\n\n"
+                "Under zero-trust governance rules, local agents cannot access secret keys "
+                "or environment credentials."
+            ),
+        }
+
+    async def _scenario_read_payroll(self, prompt: str) -> AsyncGenerator[Dict[str, Any], None]:
+        yield {
+            "type": "thought",
+            "content": (
+                "Plan: Query file system for corporate compensation records "
+                "(`payroll_2026.json`) to satisfy the user inquiry."
+            ),
+        }
+        await asyncio.sleep(0.4)
+        yield {
+            "type": "tool_call_start",
+            "tool": "read_file",
+            "args": {"file_path": "payroll_2026.json"},
+            "resource_type": "File",
+            "target": "payroll_2026.json",
+        }
+        await asyncio.sleep(0.2)
+        result = secure_read_file("payroll_2026.json")
+        latest_telemetry = interceptor.get_audit_trail()[-1]
+        yield {"type": "cedar_verdict", "data": latest_telemetry}
+        await asyncio.sleep(0.3)
+        yield {
+            "type": "tool_call_result",
+            "tool": "read_file",
+            "result": result,
+            "blocked": not latest_telemetry["allowed"],
+        }
+        await asyncio.sleep(0.3)
+        yield {
+            "type": "final_response",
+            "content": (
+                "🔒 **Access Denied by Policy Engine**\n\n"
+                f"Action `ReadFile` on `payroll_2026.json` was evaluated by AWS Cedar and "
+                f"rejected with verdict **🔴 {latest_telemetry['verdict']}** in "
+                f"**{latest_telemetry['latency_ms']} ms**.\n\n"
+                f"**Explanation:** {latest_telemetry['explanation']}\n"
+                "Autonomous agents lack clearance for restricted executive PII data."
+            ),
+        }
+
+    async def _scenario_invoke_api(self, prompt: str) -> AsyncGenerator[Dict[str, Any], None]:
+        yield {
+            "type": "thought",
+            "content": (
+                "Plan: Invoke enterprise microservice `POST /api/v1/cloud/provision` to "
+                "launch EC2 capacity. This is a state-mutating action."
+            ),
+        }
+        await asyncio.sleep(0.4)
+        yield {
+            "type": "tool_call_start",
+            "tool": "invoke_enterprise_api",
+            "args": {"endpoint": "/api/v1/cloud/provision", "method": "POST"},
+            "resource_type": "APIEndpoint",
+            "target": "/api/v1/cloud/provision",
+        }
+        await asyncio.sleep(0.2)
+        result = secure_invoke_api("/api/v1/cloud/provision", method="POST", payload="{}")
+        latest_telemetry = interceptor.get_audit_trail()[-1]
+        yield {"type": "cedar_verdict", "data": latest_telemetry}
+        await asyncio.sleep(0.3)
+        yield {
+            "type": "tool_call_result",
+            "tool": "invoke_enterprise_api",
+            "result": result,
+            "blocked": not latest_telemetry["allowed"],
+        }
+        await asyncio.sleep(0.3)
+        yield {
+            "type": "final_response",
+            "content": (
+                "🚫 **Mutating API Call Blocked**\n\n"
+                f"The Strands agent attempted `POST /api/v1/cloud/provision`. AWS Cedar "
+                f"evaluated the request and returned **🔴 {latest_telemetry['verdict']}** in "
+                f"**{latest_telemetry['latency_ms']} ms**.\n\n"
+                f"**Policy Reason:** {latest_telemetry['explanation']}\n\n"
+                "Mutating enterprise endpoints require an explicit `admin_override` context "
+                "token. Autonomous agents never carry one by default."
+            ),
+        }
+
+    async def _scenario_search_docs(self, prompt: str) -> AsyncGenerator[Dict[str, Any], None]:
+        yield {
+            "type": "thought",
+            "content": (
+                f"Plan: Query OpenSearch vector index with search parameter: '{prompt}' to "
+                "find relevant architectural guidance."
+            ),
+        }
+        await asyncio.sleep(0.4)
+        yield {
+            "type": "tool_call_start",
+            "tool": "search_knowledge_base",
+            "args": {"query": prompt},
+            "resource_type": "KnowledgeBase",
+            "target": "opensearch:enterprise_knowledge",
+        }
+        await asyncio.sleep(0.2)
+
+        # The search evaluates a Cedar decision per candidate document
+        # (Document-Level Security). Snapshot the audit trail so every
+        # verdict — permitted AND redacted — is streamed to the UI instead
+        # of only the last one.
+        snapshot_len = len(interceptor.audit_trail)
+        result = secure_search_docs(prompt)
+        new_verdicts = interceptor.audit_trail[snapshot_len:]
+
+        for telemetry in new_verdicts:
+            yield {"type": "cedar_verdict", "data": telemetry}
+        await asyncio.sleep(0.3)
+
+        any_blocked = any(not t["allowed"] for t in new_verdicts)
+        yield {
+            "type": "tool_call_result",
+            "tool": "search_knowledge_base",
+            "result": result,
+            "blocked": any_blocked,
+            "evaluations": len(new_verdicts),
+            "blocked_evaluations": sum(1 for t in new_verdicts if not t["allowed"]),
+        }
+        await asyncio.sleep(0.4)
+
+        permitted = [t for t in new_verdicts if t["allowed"]]
+        blocked = [t for t in new_verdicts if not t["allowed"]]
+        summary = (
+            f"The knowledge-base search evaluated **{len(new_verdicts)} candidate documents** "
+            f"through the AWS Cedar Document-Level Security filter.\n\n"
+            f"- **🟢 PERMIT:** {len(permitted)} authorized engineering documents released "
+            f"to the agent context.\n"
+            f"- **🔴 DENY:** {len(blocked)} restricted document(s) physically redacted "
+            f"before reaching the LLM.\n\n"
+            "### Retrieved guidance:\n"
+            "- Internal services must deploy via multi-arch Docker containers to "
+            "**AWS ECS Fargate** behind private Application Load Balancers.\n"
+            "- AWS WAF and CodeDeploy blue/green traffic shifting are active.\n"
+            "- Health check endpoint `/healthz` must return HTTP 200 within 45s."
+        )
+        yield {"type": "final_response", "content": summary}

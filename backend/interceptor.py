@@ -147,12 +147,17 @@ class SovereignInterceptor:
         self.engine = _engine_kind()
         self.load_policies()
 
-        # In-memory audit trail of all evaluated decisions
+        # In-memory audit trail of all evaluated decisions (bounded so a
+        # long-running local demo cannot grow memory without limit).
         self.audit_trail: List[Dict[str, Any]] = []
+        self._max_audit_entries = 500
 
     def load_policies(self, custom_content: Optional[str] = None):
         """Loads or hot-reloads Cedar policies from disk or memory."""
         if custom_content is not None:
+            # Reject obviously malformed policy text on every engine so the
+            # Monaco hot-reload endpoint cannot silently "accept" garbage.
+            self._validate_policy_text(custom_content)
             self.policy_content = custom_content
         else:
             if os.path.exists(self.policy_path):
@@ -160,6 +165,31 @@ class SovereignInterceptor:
                     self.policy_content = f.read()
             else:
                 raise FileNotFoundError(f"Cedar policy file not found: {self.policy_path}")
+
+    @staticmethod
+    def _validate_policy_text(content: str):
+        """
+        Cheap structural validation of Cedar policy syntax.
+
+        The native Rust engine fully parses and rejects invalid text on its
+        own; this check exists so the pure-Python engine (serverless hosts)
+        fails just as loudly on malformed input instead of accepting it.
+        Checks: non-empty, balanced braces/parens, and at least one
+        `permit`/`forbid` clause.
+        """
+        if not content or not content.strip():
+            raise ValueError("Cedar policy file is empty.")
+        # Strip comments before counting clauses.
+        stripped = re.sub(r"//[^\n]*", "", content)
+        stripped = re.sub(r"/\*.*?\*/", "", stripped, flags=re.DOTALL)
+        if stripped.count("{") != stripped.count("}"):
+            raise ValueError("Unbalanced `{` / `}` in Cedar policy.")
+        if stripped.count("(") != stripped.count(")"):
+            raise ValueError("Unbalanced `(` / `)` in Cedar policy.")
+        if not re.search(r"\b(permit|forbid)\b", stripped):
+            raise ValueError(
+                "Cedar policy must contain at least one `permit` or `forbid` clause."
+            )
 
     def evaluate(
         self,
@@ -277,6 +307,8 @@ class SovereignInterceptor:
         }
 
         self.audit_trail.append(telemetry)
+        if len(self.audit_trail) > self._max_audit_entries:
+            del self.audit_trail[: len(self.audit_trail) - self._max_audit_entries]
         return allowed, telemetry
 
     def get_audit_trail(self) -> List[Dict[str, Any]]:

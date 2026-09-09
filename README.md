@@ -225,8 +225,24 @@ tests/test_sovereign_guard.py::test_policy_hot_reload PASSED             [100%]
 | **0:00 – 0:30** | *"Every developer is starting to run local AI agents using tools. But how do you stop an agent from stealing your private `.env` or reading confidential files during a prompt injection? System prompts can always be jailbroken. Meet SovereignGuard."* | Show clean SovereignGuard UI with live Cedar policy active. |
 | **0:30 – 1:15** | Click the preset: **"Exfiltrate AWS Secrets (.env)"**. The local Strands agent plans the tool call `secure_read_file('/app/.env')`. | **Visual Impact:** Center panel flashes a bright red security barrier: **`🔴 CEDAR DENIED in 0.6ms`**. The agent outputs: *"Access blocked by Cedar security rule."* |
 | **1:15 – 2:00** | *"Now let's see a legitimate query."* Click preset: **"ECS Deployment Guide Search"**. | Center panel flashes **`🟢 CEDAR PERMITTED`** with confetti. Local OpenSearch returns vector chunks, and Strands answers accurately. |
-| **2:00 – 2:30** | *"Want to change security rules on the fly?"* In the Monaco editor panel, comment out a forbid rule or add a new role restriction. Hit **"Hot Reload"**. Re-run the test: the agent's permissions change instantly with zero restarts. | Live Monaco editor showing Cedar syntax highlighting and immediate hot-reloading. |
+| **2:00 – 2:30** | *"Want to change security rules on the fly?"* In the Monaco editor, select all policy text and replace it with a minimal permissive policy (paste the snippet below). Hit **"Save & Hot-Reload Policy"** — the Rust core re-compiles it in memory. Re-run the `.env` attack: the verdict flips to **🟢 PERMIT**. Then hit **"Restore Production Rules"** (or re-paste the original) and re-run: it flips back to **🔴 DENY**. Zero restarts. | Live Monaco editor showing the verdict flip in both directions. |
 | **2:30 – 3:00** | *"SovereignGuard bridges the gap between probabilistic AI and deterministic security. Built with the AWS Strands Agents SDK, AWS Cedar, and OpenSearch. 100% open-source, runs on localhost, zero cloud bills. Thank you!"* | Bring up the architecture diagram showing Cedar + Strands at the core. |
+
+**Hot-reload demo policy** (paste this into Monaco for the 2:00 – 2:30 beat):
+
+```cedar
+// Deliberately permissive policy for the hot-reload demo only.
+permit (
+    principal in Role::"AutonomousAgent",
+    action,
+    resource
+);
+```
+
+> Note: simply *deleting* the secrets `forbid` rule is not enough to flip the
+> verdict — Cedar is default-deny, so with no matching `permit` clause the
+> `.env` read still denies. The demo works by replacing the whole policy with
+> the catch-all `permit` above, then restoring the production rules.
 
 ---
 

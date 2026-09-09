@@ -28,7 +28,7 @@ export const App: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
 
   // Play synthetic Web Audio alert tones + canvas-confetti on PERMIT verdicts
-  const playAudioCue = (type: 'DENY' | 'PERMIT') => {
+  const playAudioCue = React.useCallback((type: 'DENY' | 'PERMIT') => {
     if (!soundEnabled) return;
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -66,10 +66,10 @@ export const App: React.FC = () => {
           // confetti may not be available in some environments; harmless.
         }
       }
-    } catch (e) {
+    } catch {
       // AudioContext suppressed before user gesture
     }
-  };
+  }, [soundEnabled]);
 
   // Fetch initial policies and health
   useEffect(() => {
@@ -138,7 +138,7 @@ export const App: React.FC = () => {
     return () => {
       ws.close();
     };
-  }, [soundEnabled]);
+  }, [soundEnabled, playAudioCue]);
 
   // Trigger agent run via WebSocket or fallback to REST
   const handleRunPrompt = async (inputPrompt?: string, presetId?: string) => {
@@ -166,11 +166,20 @@ export const App: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           setAgentEvents(data.events);
-          const verdictEvent = data.events.find((e: any) => e.type === 'cedar_verdict');
-          if (verdictEvent) {
-            setDecisions((prev) => [verdictEvent.data, ...prev]);
-            setCedarLatency(verdictEvent.data.latency_ms);
-            playAudioCue(verdictEvent.data.verdict);
+
+          // A single run can carry MULTIPLE Cedar verdicts (e.g. the
+          // knowledge-base search evaluates one decision per candidate
+          // document). Surface all of them, newest first.
+          const verdictEvents = (data.events as any[]).filter(
+            (e: any) => e.type === 'cedar_verdict'
+          );
+          if (verdictEvents.length > 0) {
+            const reversed = [...verdictEvents].reverse();
+            setDecisions((prev) => [...reversed.map((v: any) => v.data), ...prev]);
+            setCedarLatency(reversed[0].data.latency_ms);
+            for (const v of reversed) {
+              playAudioCue(v.data.verdict);
+            }
           }
         }
       } catch (err) {
