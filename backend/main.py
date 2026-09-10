@@ -27,7 +27,16 @@ app.add_middleware(
 )
 
 runner = AgentRunner()
-opensearch = OpenSearchService()
+# Lazy singleton: OpenSearchService pings localhost:9200 in its constructor,
+# which wastes cold-start time in serverless deployments (where the Docker
+# OpenSearch never exists). Construct it on first use instead.
+_opensearch: Optional[OpenSearchService] = None
+
+def get_opensearch() -> OpenSearchService:
+    global _opensearch
+    if _opensearch is None:
+        _opensearch = OpenSearchService()
+    return _opensearch
 
 class PolicyUpdateRequest(BaseModel):
     policy_content: str
@@ -43,7 +52,7 @@ async def health_check():
         "service": "SovereignGuard Gateway",
         "cedar_engine": "Active (Rust Native)" if getattr(interceptor, "engine", "rust") == "rust" else "Active (Python Semantic Mirror)",
         "cedar_engine_kind": getattr(interceptor, "engine", "rust"),
-        "opensearch_connected": opensearch.is_connected,
+        "opensearch_connected": get_opensearch().is_connected,
         "deployment": "vercel" if os.environ.get("VERCEL") else "local",
         "timestamp": time.time()
     }
@@ -101,9 +110,16 @@ async def get_audit_log():
 
 @app.post("/api/agent/run")
 async def run_agent_rest(payload: PromptRequest):
-    """REST endpoint for single-turn prompt execution."""
+    """REST endpoint for single-turn prompt execution.
+
+    Pacing is explicitly DISABLED: every event is collected before the
+    single HTTP response is returned, so inter-event sleeps only stall
+    the client. This is the path used by the serverless deployment.
+    """
     events = []
-    async for event in runner.run_prompt_stream(payload.prompt, payload.preset_id):
+    async for event in runner.run_prompt_stream(
+        payload.prompt, payload.preset_id, stream_pacing=False
+    ):
         events.append(event)
     return {"events": events}
 
@@ -112,6 +128,9 @@ async def agent_websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint streaming live agent thought tokens, tool planning,
     and sub-millisecond Cedar policy intercept decisions directly to the UI.
+
+    Pacing stays ENABLED here so the local demo streams its thought
+    frames cinematically in real time.
     """
     await websocket.accept()
     try:
@@ -122,7 +141,9 @@ async def agent_websocket_endpoint(websocket: WebSocket):
             preset_id = data.get("preset_id")
 
             # Stream thought and intercept frames in real-time
-            async for frame in runner.run_prompt_stream(prompt, preset_id):
+            async for frame in runner.run_prompt_stream(
+                prompt, preset_id, stream_pacing=True
+            ):
                 await websocket.send_json(frame)
 
     except WebSocketDisconnect:

@@ -51,9 +51,28 @@ class AgentRunner:
         self.is_ollama_online = False
         self.is_strands_available = _STRANDS_AVAILABLE
         self._agent = None
+        # Pacing delays only make sense when events are consumed live
+        # (WebSocket streaming). The REST endpoint collects every event
+        # before responding, so sleeping between yields just stalls the
+        # HTTP response by 1.5-2s per prompt. run_prompt_stream accepts a
+        # `stream_pacing` flag; the WS handler enables it, REST does not.
+        self.stream_pacing = False
+
+    async def _pace(self, seconds: float) -> None:
+        """Sleep only when events are being consumed as a live stream."""
+        if self.stream_pacing:
+            await asyncio.sleep(seconds)
 
     async def check_ollama(self) -> bool:
-        """Checks if local Ollama daemon is reachable."""
+        """Checks if local Ollama daemon is reachable.
+
+        Skipped entirely in serverless deployments (Vercel) — there is no
+        local Ollama there, so probing localhost:11434 only adds latency
+        to every request.
+        """
+        if os.environ.get("VERCEL"):
+            self.is_ollama_online = False
+            return False
         try:
             async with httpx.AsyncClient(timeout=0.5) as client:
                 res = await client.get(f"{self.ollama_url}/api/tags")
@@ -112,7 +131,7 @@ class AgentRunner:
                 f"Snapshotting audit trail before invocation."
             ),
         }
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
 
         try:
             result = await asyncio.to_thread(agent, prompt)
@@ -136,11 +155,20 @@ class AgentRunner:
         yield {"type": "final_response", "content": response_text}
 
     async def run_prompt_stream(
-        self, prompt: str, preset_id: Optional[str] = None
+        self,
+        prompt: str,
+        preset_id: Optional[str] = None,
+        stream_pacing: Optional[bool] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Executes the autonomous agent reasoning loop and yields structured telemetry events.
+
+        `stream_pacing=True` keeps the cinematic inter-event delays for the
+        live WebSocket path; the default (None) leaves the current flag
+        untouched. REST callers get instant responses.
         """
+        if stream_pacing is not None:
+            self.stream_pacing = stream_pacing
         await self.check_ollama()
 
         if _STRANDS_AVAILABLE and self.is_ollama_online:
@@ -184,7 +212,7 @@ class AgentRunner:
                 f"Identifying required resources and evaluating security boundaries."
             ),
         }
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
 
         # Free-form prompts: keyword heuristics. Mutating-API intent is
         # checked BEFORE the documentation-search keywords, because attack
@@ -216,7 +244,7 @@ class AgentRunner:
             "type": "thought",
             "content": "Evaluating prompt: No tool invocation requested. Generating direct response.",
         }
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "final_response",
             "content": (
@@ -239,7 +267,7 @@ class AgentRunner:
                 "system configuration and API credentials."
             ),
         }
-        await asyncio.sleep(0.4)
+        await self._pace(0.4)
         yield {
             "type": "tool_call_start",
             "tool": "read_file",
@@ -247,18 +275,18 @@ class AgentRunner:
             "resource_type": "File",
             "target": "/app/.env",
         }
-        await asyncio.sleep(0.2)
+        await self._pace(0.2)
         result = secure_read_file("/app/.env")
         latest_telemetry = interceptor.get_audit_trail()[-1]
         yield {"type": "cedar_verdict", "data": latest_telemetry}
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "tool_call_result",
             "tool": "read_file",
             "result": result,
             "blocked": not latest_telemetry["allowed"],
         }
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "final_response",
             "content": (
@@ -280,7 +308,7 @@ class AgentRunner:
                 "(`payroll_2026.json`) to satisfy the user inquiry."
             ),
         }
-        await asyncio.sleep(0.4)
+        await self._pace(0.4)
         yield {
             "type": "tool_call_start",
             "tool": "read_file",
@@ -288,18 +316,18 @@ class AgentRunner:
             "resource_type": "File",
             "target": "payroll_2026.json",
         }
-        await asyncio.sleep(0.2)
+        await self._pace(0.2)
         result = secure_read_file("payroll_2026.json")
         latest_telemetry = interceptor.get_audit_trail()[-1]
         yield {"type": "cedar_verdict", "data": latest_telemetry}
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "tool_call_result",
             "tool": "read_file",
             "result": result,
             "blocked": not latest_telemetry["allowed"],
         }
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "final_response",
             "content": (
@@ -320,7 +348,7 @@ class AgentRunner:
                 "launch EC2 capacity. This is a state-mutating action."
             ),
         }
-        await asyncio.sleep(0.4)
+        await self._pace(0.4)
         yield {
             "type": "tool_call_start",
             "tool": "invoke_enterprise_api",
@@ -328,18 +356,18 @@ class AgentRunner:
             "resource_type": "APIEndpoint",
             "target": "/api/v1/cloud/provision",
         }
-        await asyncio.sleep(0.2)
+        await self._pace(0.2)
         result = secure_invoke_api("/api/v1/cloud/provision", method="POST", payload="{}")
         latest_telemetry = interceptor.get_audit_trail()[-1]
         yield {"type": "cedar_verdict", "data": latest_telemetry}
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "tool_call_result",
             "tool": "invoke_enterprise_api",
             "result": result,
             "blocked": not latest_telemetry["allowed"],
         }
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
         yield {
             "type": "final_response",
             "content": (
@@ -361,7 +389,7 @@ class AgentRunner:
                 "find relevant architectural guidance."
             ),
         }
-        await asyncio.sleep(0.4)
+        await self._pace(0.4)
         yield {
             "type": "tool_call_start",
             "tool": "search_knowledge_base",
@@ -369,7 +397,7 @@ class AgentRunner:
             "resource_type": "KnowledgeBase",
             "target": "opensearch:enterprise_knowledge",
         }
-        await asyncio.sleep(0.2)
+        await self._pace(0.2)
 
         # The search evaluates a Cedar decision per candidate document
         # (Document-Level Security). Snapshot the audit trail so every
@@ -381,7 +409,7 @@ class AgentRunner:
 
         for telemetry in new_verdicts:
             yield {"type": "cedar_verdict", "data": telemetry}
-        await asyncio.sleep(0.3)
+        await self._pace(0.3)
 
         any_blocked = any(not t["allowed"] for t in new_verdicts)
         yield {
@@ -392,7 +420,7 @@ class AgentRunner:
             "evaluations": len(new_verdicts),
             "blocked_evaluations": sum(1 for t in new_verdicts if not t["allowed"]),
         }
-        await asyncio.sleep(0.4)
+        await self._pace(0.4)
 
         permitted = [t for t in new_verdicts if t["allowed"]]
         blocked = [t for t in new_verdicts if not t["allowed"]]
