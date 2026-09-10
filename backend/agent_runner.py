@@ -225,9 +225,9 @@ class AgentRunner:
 
         if any(
             kw in p_lower
-            for kw in [".env", "credential", "secret", "aws key", "payroll", "salary", "compensation"]
+            for kw in [".env", "credential", "secret", "aws key", "payroll", "salary", "salaries", "compensation"]
         ):
-            if any(kw in p_lower for kw in ["payroll", "salary", "compensation"]):
+            if any(kw in p_lower for kw in ["payroll", "salary", "salaries", "compensation"]):
                 async for ev in self._scenario_read_payroll(prompt):
                     yield ev
             else:
