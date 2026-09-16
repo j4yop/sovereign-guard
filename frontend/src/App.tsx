@@ -400,9 +400,9 @@ export const App: React.FC = () => {
             <span className="font-mono">AWS Cedar Engine ({engineKind === 'rust' ? 'Rust Native' : 'Python Mirror'})</span>
           </div>
           <div className="flex items-center gap-3 font-mono text-[11px]">
-            <span>Bharat Builds Tour 2026</span>
+            <span>Zero-Trust Policy Gateway</span>
             <span>•</span>
-            <span className="text-slate-800 font-semibold">Track 1: Build It</span>
+            <span className="text-slate-800 font-semibold">Production Ready</span>
           </div>
         </footer>
       </main>

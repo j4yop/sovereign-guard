@@ -68,7 +68,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchConsole }) => 
           {/* Eyebrow badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-semibold shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-            <span>Bharat Builds Tour 2026 • Track 1: Build It</span>
+            <span>Zero-Trust AI Agent Security Architecture</span>
           </div>
 
           {/* Main Headline */}
@@ -283,7 +283,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchConsole }) => 
             Built on AWS Open-Source Primitives
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
-            Track 1: Build It judging requires AWS technology at the core of execution, not just in the README.
+            Engineered with official AWS open-source frameworks at the core of runtime policy evaluation.
           </p>
         </div>
 
