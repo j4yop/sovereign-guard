@@ -56,18 +56,18 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   ];
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col h-[760px] overflow-hidden shadow-xs transition-colors duration-200">
+    <div className="bg-white border border-slate-200 rounded-2xl flex flex-col h-[760px] overflow-hidden shadow-subtle transition-colors duration-200">
       {/* Panel Header */}
-      <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 flex items-center justify-between">
+      <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-cyan-100 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800 flex items-center justify-center text-cyan-700 dark:text-cyan-400">
+          <div className="w-7 h-7 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-700">
             <Bot className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
               Agent Runtime Stream
             </h2>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">AWS Strands Agents SDK</span>
+            <span className="text-[10px] text-slate-500 font-mono">AWS Strands Agents SDK</span>
           </div>
         </div>
 
@@ -76,17 +76,17 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             <button
               onClick={onClearEvents}
               title="Clear event stream"
-              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer text-[11px]"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer text-[11px]"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
           )}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white border border-slate-200 shadow-2xs">
             <span className="flex h-2 w-2 relative">
               <span className={`inline-flex h-full w-full rounded-full ${isRunning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`}></span>
               <span className={`relative inline-flex rounded-full h-2 w-2 ${isRunning ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
             </span>
-            <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300 font-semibold">
+            <span className="text-[10px] font-mono text-slate-600 font-semibold">
               {isRunning ? 'Reasoning...' : 'Idle'}
             </span>
           </div>
@@ -96,13 +96,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       {/* Main Stream Area */}
       <div className="flex-1 p-4 overflow-y-auto space-y-3.5 font-sans text-xs">
         {events.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400 p-6 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
+          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
               <BrainCircuit className="w-6 h-6 stroke-1" />
             </div>
             <div>
-              <p className="font-semibold text-slate-700 dark:text-slate-200 text-sm">Agent is standby</p>
-              <p className="text-xs text-slate-400 max-w-xs mt-1">
+              <p className="font-semibold text-slate-800 text-sm">Agent is standby</p>
+              <p className="text-xs text-slate-500 max-w-xs mt-1">
                 Select an attack preset from the top bar or pick a sample prompt below to observe real-time tool planning and zero-trust interception:
               </p>
             </div>
@@ -118,10 +118,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                     setPrompt(sp);
                     onSubmit(sp);
                   }}
-                  className="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-emerald-50/50 hover:border-emerald-300 dark:hover:border-emerald-700 text-slate-600 dark:text-slate-300 text-[11px] transition-all cursor-pointer flex items-center justify-between group"
+                  className="w-full text-left p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-emerald-50/50 hover:border-emerald-300 text-slate-700 text-[11px] transition-all cursor-pointer flex items-center justify-between group"
                 >
-                  <span className="truncate">{sp}</span>
-                  <span className="text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 shrink-0 ml-2">&rarr;</span>
+                  <span className="truncate font-mono">{sp}</span>
+                  <span className="text-slate-400 group-hover:text-emerald-700 shrink-0 ml-2">&rarr;</span>
                 </button>
               ))}
             </div>
@@ -132,13 +132,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {thoughts.map((t, idx) => (
               <div
                 key={`thought-${idx}`}
-                className="bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/60 rounded-xl p-3.5 space-y-1.5"
+                className="bg-sky-50/70 border border-sky-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs"
               >
-                <div className="flex items-center gap-2 text-sky-800 dark:text-sky-300 font-bold text-xs">
-                  <BrainCircuit className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 text-sky-800 font-semibold text-xs">
+                  <BrainCircuit className="w-3.5 h-3.5 text-sky-600" />
                   <span>Agent Reasoning Step {idx + 1}</span>
                 </div>
-                <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-mono whitespace-pre-wrap">
+                <p className="text-slate-800 text-xs leading-relaxed font-mono whitespace-pre-wrap">
                   {t.content}
                 </p>
               </div>
@@ -148,19 +148,19 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {toolCalls.map((tc, idx) => (
               <div
                 key={`tc-${idx}`}
-                className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-800/60 rounded-xl p-3.5 space-y-1.5"
+                className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs"
               >
-                <div className="flex items-center justify-between text-amber-900 dark:text-amber-300 font-bold text-xs">
+                <div className="flex items-center justify-between text-amber-900 font-semibold text-xs">
                   <span className="flex items-center gap-1.5">
                     <Terminal className="w-3.5 h-3.5 text-amber-600" />
-                    Planned Tool Call: <code className="bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded text-amber-900 dark:text-amber-200 font-mono text-[11px]">{tc.tool}</code>
+                    Planned Tool Call: <code className="bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-mono text-[11px]">{tc.tool}</code>
                   </span>
-                  <span className="text-[9px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/60 dark:text-amber-300 font-semibold font-mono">
+                  <span className="text-[9px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-semibold font-mono">
                     Intercepting
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
-                  Target Resource: <code className="text-slate-800 dark:text-slate-200 font-semibold">{tc.target || JSON.stringify(tc.args)}</code>
+                <div className="text-[11px] text-slate-600 font-mono">
+                  Target Resource: <code className="text-slate-800 font-semibold">{tc.target || JSON.stringify(tc.args)}</code>
                 </div>
               </div>
             ))}
@@ -169,30 +169,30 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {toolResults.map((tr, idx) => (
               <div
                 key={`tr-${idx}`}
-                className={`border rounded-xl p-3.5 space-y-2 transition-all ${
+                className={`border rounded-xl p-3.5 space-y-2 transition-all shadow-2xs ${
                   tr.blocked
-                    ? 'bg-rose-50/80 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900/60 text-rose-900 dark:text-rose-200'
-                    : 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/60 text-emerald-900 dark:text-emerald-200'
+                    ? 'bg-rose-50/50 border-rose-200 text-rose-950'
+                    : 'bg-emerald-50/50 border-emerald-200 text-emerald-950'
                 }`}
               >
                 <div className="flex items-center justify-between font-bold text-xs">
                   <span className="flex items-center gap-1.5">
                     {tr.blocked ? (
-                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                      <AlertTriangle className="w-4 h-4 text-rose-600" />
                     ) : (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                     )}
                     Tool Result ({tr.tool})
                   </span>
                   <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full font-bold border ${
                     tr.blocked
-                      ? 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900 dark:text-rose-300'
-                      : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900 dark:text-emerald-300'
+                      ? 'bg-rose-100 text-rose-800 border-rose-200'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                   }`}>
                     {tr.blocked ? 'Execution Aborted' : 'Execution Approved'}
                   </span>
                 </div>
-                <div className="bg-white/90 dark:bg-slate-950 p-3 rounded-lg max-h-40 overflow-y-auto text-[11px] text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap border border-slate-200/80 dark:border-slate-800 leading-relaxed">
+                <div className="bg-white p-3 rounded-lg max-h-40 overflow-y-auto text-[11px] text-slate-800 font-mono whitespace-pre-wrap border border-slate-200 leading-relaxed shadow-2xs">
                   {tr.result}
                 </div>
               </div>
@@ -200,12 +200,12 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
 
             {/* Final AI Response */}
             {finalResponse && (
-              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-2 shadow-2xs">
-                <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-xs">
-                  <Bot className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 shadow-2xs">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-xs">
+                  <Bot className="w-4 h-4 text-emerald-700" />
                   <span>Agent Final Synthesis</span>
                 </div>
-                <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
+                <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-sans">
                   {finalResponse.content}
                 </div>
               </div>
@@ -215,19 +215,19 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       </div>
 
       {/* Prompt Input Form */}
-      <form onSubmit={handleSubmit} className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 flex gap-2">
+      <form onSubmit={handleSubmit} className="p-3.5 border-t border-slate-100 bg-slate-50/60 flex gap-2">
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Ask agent or type custom prompt injection exploit..."
           disabled={isRunning}
-          className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-400 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 outline-none transition-colors shadow-2xs"
+          className="flex-1 bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition-colors shadow-2xs"
         />
         <button
           type="submit"
           disabled={isRunning || !prompt.trim()}
-          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+          className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-[0.99] shrink-0"
         >
           {isRunning ? (
             <span className="flex items-center gap-1.5">

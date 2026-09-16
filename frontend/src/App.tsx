@@ -58,10 +58,6 @@ export const App: React.FC = () => {
   const [isSimulationMode, setIsSimulationMode] = useState(false);
   const [systemArmed] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    // Default to light mode as requested by user
-    return false;
-  });
   const [prompt, setPrompt] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [agentEvents, setAgentEvents] = useState<any[]>([]);
@@ -75,17 +71,12 @@ export const App: React.FC = () => {
 
   const socketRef = useRef<WebSocket | null>(null);
 
-  // Sync dark mode class with root html element
+  // Enforce light mode on root HTML document
   useEffect(() => {
     const root = document.documentElement;
-    if (isDarkMode) {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.add('light');
-      root.classList.remove('dark');
-    }
-  }, [isDarkMode]);
+    root.classList.add('light');
+    root.classList.remove('dark');
+  }, []);
 
   // Synthetic Web Audio alert tones
   const playAudioCue = useCallback((type: 'DENY' | 'PERMIT') => {
@@ -322,7 +313,7 @@ export const App: React.FC = () => {
   const permittedCount = decisions.filter((d) => d.allowed).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-900 dark:selection:bg-emerald-500 dark:selection:text-black bg-grid-pattern transition-colors duration-200">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-900 transition-colors duration-200">
       {/* Top Navigation & Metrics Header */}
       <Navbar
         systemArmed={systemArmed}
@@ -334,8 +325,6 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         isSimulationMode={isSimulationMode}
-        isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         engineKind={engineKind}
         deployment={deployment}
       />
@@ -394,7 +383,6 @@ export const App: React.FC = () => {
                   onHotReload={handleHotReload}
                   isReloading={isReloading}
                   reloadStatus={reloadStatus}
-                  isDarkMode={isDarkMode}
                 />
               </div>
             </div>
@@ -402,9 +390,9 @@ export const App: React.FC = () => {
         )}
 
         {/* Enterprise Security Architecture Status Footer */}
-        <footer className="border-t border-slate-200 dark:border-slate-800 pt-5 pb-8 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-3">
+        <footer className="border-t border-slate-200 pt-5 pb-8 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+            <span className="flex items-center gap-1.5 text-emerald-700 font-semibold">
               <ShieldCheck className="w-4 h-4" />
               SovereignGuard Zero-Trust Architecture: Active
             </span>
@@ -414,7 +402,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-3 font-mono text-[11px]">
             <span>Bharat Builds Tour 2026</span>
             <span>•</span>
-            <span className="text-slate-700 dark:text-slate-300 font-semibold">Track 1: Build It</span>
+            <span className="text-slate-800 font-semibold">Track 1: Build It</span>
           </div>
         </footer>
       </main>
