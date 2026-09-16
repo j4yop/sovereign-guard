@@ -2,59 +2,97 @@
 
 @layer base {
   :root {
-    --bg-primary: #0b0f17;
-    --bg-secondary: #111827;
-    --bg-card: #161f30;
+    --bg-page: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --border-subtle: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --accent-emerald: #059669;
+    --accent-crimson: #e11d48;
+    --accent-cyan: #0284c7;
+    --accent-amber: #d97706;
+  }
+
+  .dark {
+    --bg-page: #0b0f17;
+    --bg-surface: #111827;
+    --bg-subtle: #161f30;
     --border-subtle: #1f293d;
-    --border-bright: #334155;
+    --border-strong: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
     --accent-emerald: #10b981;
-    --accent-crimson: #ef4444;
+    --accent-crimson: #f43f5e;
     --accent-cyan: #06b6d4;
     --accent-amber: #f59e0b;
   }
 
   body {
-    background-color: var(--bg-primary);
-    color: #f1f5f9;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow-x: hidden;
+  }
+
+  code, pre, .font-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
 
-/* Custom scrollbar */
+/* Light Theme Dot Matrix Pattern */
+.bg-grid-pattern {
+  background-size: 24px 24px;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+}
+
+.dark .bg-grid-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+}
+
+/* Polished Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0f17;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f293d;
-  border-radius: 3px;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #94a3b8;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #273549;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3b4d66;
 }
 
-/* Glow effects */
+/* High-end Light Glows & Shadows */
 .glow-emerald {
-  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.45);
+  box-shadow: 0 4px 24px -2px rgba(5, 150, 105, 0.18), 0 0 0 1px rgba(5, 150, 105, 0.2);
 }
 
 .glow-crimson {
-  box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.5);
+  box-shadow: 0 4px 24px -2px rgba(225, 29, 72, 0.18), 0 0 0 1px rgba(225, 29, 72, 0.2);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 4px 24px -2px rgba(2, 132, 199, 0.18), 0 0 0 1px rgba(2, 132, 199, 0.2);
 }
 
 @keyframes pulse-fast {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.96); }
 }
 
 .animate-pulse-fast {
-  animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

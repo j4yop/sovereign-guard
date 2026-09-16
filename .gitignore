@@ -15,10 +15,11 @@ dist-ssr/
 *.local
 .npm/
 
-# IDE & OS
+# IDE & OS & Deployment
 .DS_Store
 .vscode/
 .idea/
+.vercel/
 *.swp
 *.swo
 

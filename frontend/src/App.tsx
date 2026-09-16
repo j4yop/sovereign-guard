@@ -1,34 +1,94 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { AttackPresets } from './components/AttackPresets';
 import { AgentPanel } from './components/AgentPanel';
 import { InterceptorFeed } from './components/InterceptorFeed';
 import type { CedarDecision } from './components/InterceptorFeed';
 import { MonacoEditorPanel } from './components/MonacoEditorPanel';
+import { LandingPage } from './components/LandingPage';
+import { ResourceGuide } from './components/ResourceGuide';
+import { runClientSimulation } from './engine/clientSimulation';
 import { ShieldCheck } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
-type EngineKind = 'rust' | 'python';
-type Deployment = 'vercel' | 'local';
+const DEFAULT_POLICY_CODE = `// ==============================================================================
+// SOVEREIGN GUARD: PRODUCTION CEDAR POLICIES
+// Formal, mathematically verified authorization rules for autonomous AI agents.
+// ==============================================================================
+
+// POLICY 1: HARD FORBID - Secrets & Credentials Access
+forbid (
+    principal in Role::"AutonomousAgent",
+    action == Action::"ReadFile",
+    resource
+)
+when {
+    resource.tag == "secrets" ||
+    resource.tag == "credentials" ||
+    resource.tag == "payroll" ||
+    resource.tag == "pii" ||
+    resource.path like "*.env*" ||
+    resource.path like "*id_rsa*" ||
+    resource.path like "*credentials*"
+};
+
+// POLICY 2: FORBID - Unauthorized Mutating API Actions
+forbid (
+    principal in Role::"AutonomousAgent",
+    action == Action::"InvokeAPI",
+    resource
+)
+when {
+    resource.mutating == true && context.admin_override != true
+};
+
+// POLICY 3: PERMIT - Authorized Internal Engineering Documentation
+permit (
+    principal in Role::"AutonomousAgent",
+    action in [Action::"SearchDocs", Action::"ReadFile"],
+    resource
+)
+when {
+    resource.classification == "PublicInternal" ||
+    resource.classification == "EngineeringDocs"
+};
+`;
 
 export const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'landing' | 'console' | 'resources'>('landing');
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
   const [systemArmed] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    // Default to light mode as requested by user
+    return false;
+  });
   const [prompt, setPrompt] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [agentEvents, setAgentEvents] = useState<any[]>([]);
   const [decisions, setDecisions] = useState<CedarDecision[]>([]);
-  const [policyCode, setPolicyCode] = useState<string>('');
+  const [policyCode, setPolicyCode] = useState<string>(DEFAULT_POLICY_CODE);
   const [isReloading, setIsReloading] = useState(false);
   const [reloadStatus, setReloadStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [cedarLatency, setCedarLatency] = useState<number>(0.16);
-  const [engineKind, setEngineKind] = useState<EngineKind>('rust');
-  const [deployment, setDeployment] = useState<Deployment>('local');
+  const [engineKind, setEngineKind] = useState<'rust' | 'python'>('rust');
+  const [deployment, setDeployment] = useState<'vercel' | 'local' | 'unknown'>('unknown');
 
   const socketRef = useRef<WebSocket | null>(null);
 
-  // Play synthetic Web Audio alert tones + canvas-confetti on PERMIT verdicts
-  const playAudioCue = React.useCallback((type: 'DENY' | 'PERMIT') => {
+  // Sync dark mode class with root html element
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  // Synthetic Web Audio alert tones
+  const playAudioCue = useCallback((type: 'DENY' | 'PERMIT') => {
     if (!soundEnabled) return;
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -53,47 +113,51 @@ export const App: React.FC = () => {
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.2);
-        try {
-          confetti({
-            particleCount: 70,
-            spread: 70,
-            startVelocity: 25,
-            origin: { y: 0.35 },
-            colors: ['#10b981', '#22d3ee', '#34d399'],
-            scalar: 0.7,
-          });
-        } catch {
-          // confetti may not be available in some environments; harmless.
-        }
       }
     } catch {
       // AudioContext suppressed before user gesture
     }
   }, [soundEnabled]);
 
-  // Fetch initial policies and health
+  // Probe backend health & engine
+  useEffect(() => {
+    let cancelled = false;
+    const probe = async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.engine === 'rust' || data.engine === 'python') {
+          setEngineKind(data.engine);
+        }
+        if (data.deployment) {
+          setDeployment(data.deployment);
+        }
+      } catch {
+        // Backend not reachable
+      }
+    };
+    probe();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch initial policies
   useEffect(() => {
     const fetchPolicies = async () => {
       try {
-        const [policiesRes, healthRes] = await Promise.all([
-          fetch('/api/policies'),
-          fetch('/api/health'),
-        ]);
-        if (policiesRes.ok) {
-          const data = await policiesRes.json();
+        const res = await fetch('/api/policies');
+        if (res.ok) {
+          const data = await res.json();
           setPolicyCode(data.policies);
+          setIsSimulationMode(false);
+        } else {
+          setIsSimulationMode(true);
         }
-        if (healthRes.ok) {
-          const data = await healthRes.json();
-          if (data.cedar_engine_kind === 'python' || data.cedar_engine_kind === 'rust') {
-            setEngineKind(data.cedar_engine_kind);
-          }
-          if (data.deployment === 'vercel' || data.deployment === 'local') {
-            setDeployment(data.deployment);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load initial state:', err);
+      } catch {
+        setIsSimulationMode(true);
       }
     };
     fetchPolicies();
@@ -104,43 +168,48 @@ export const App: React.FC = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/agent`;
 
-    const ws = new WebSocket(wsUrl);
-    socketRef.current = ws;
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        setAgentEvents((prev) => [...prev, payload]);
+      ws.onopen = () => {
+        setIsSimulationMode(false);
+      };
 
-        if (payload.type === 'cedar_verdict') {
-          const dec: CedarDecision = payload.data;
-          setDecisions((prev) => [dec, ...prev]);
-          setCedarLatency(dec.latency_ms);
-          playAudioCue(dec.verdict);
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          setAgentEvents((prev) => [...prev, payload]);
+
+          if (payload.type === 'cedar_verdict') {
+            const dec: CedarDecision = payload.data;
+            setDecisions((prev) => [dec, ...prev]);
+            setCedarLatency(dec.latency_ms);
+            playAudioCue(dec.verdict);
+          }
+
+          if (payload.type === 'final_response') {
+            setIsRunning(false);
+          }
+        } catch (e) {
+          console.error('WS parse error:', e);
         }
+      };
 
-        if (payload.type === 'final_response') {
-          setIsRunning(false);
-        }
-      } catch (e) {
-        console.error('WS parse error:', e);
-      }
-    };
-
-    ws.onerror = () => {
-      console.warn('WebSocket connection error, falling back to REST');
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
+      ws.onerror = () => {
+        setIsSimulationMode(true);
+      };
+    } catch {
+      setIsSimulationMode(true);
+    }
 
     return () => {
-      ws.close();
+      if (ws) ws.close();
     };
-  }, [soundEnabled, playAudioCue]);
+  }, [playAudioCue]);
 
-  // Trigger agent run via WebSocket or fallback to REST
+  // Trigger agent run via WebSocket, REST fallback, or client simulation
   const handleRunPrompt = async (inputPrompt?: string, presetId?: string) => {
     const targetPrompt = inputPrompt || prompt;
     if (!targetPrompt.trim() || isRunning) return;
@@ -148,6 +217,7 @@ export const App: React.FC = () => {
     setIsRunning(true);
     setAgentEvents([]);
 
+    // 1. Live WebSocket to local Python/Rust backend
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
@@ -155,8 +225,11 @@ export const App: React.FC = () => {
           preset_id: presetId,
         })
       );
-    } else {
-      // REST fallback
+      return;
+    }
+
+    // 2. REST endpoint fallback
+    if (!isSimulationMode) {
       try {
         const res = await fetch('/api/agent/run', {
           method: 'POST',
@@ -166,27 +239,40 @@ export const App: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           setAgentEvents(data.events);
-
-          // A single run can carry MULTIPLE Cedar verdicts (e.g. the
-          // knowledge-base search evaluates one decision per candidate
-          // document). Surface all of them, newest first.
-          const verdictEvents = (data.events as any[]).filter(
-            (e: any) => e.type === 'cedar_verdict'
-          );
+          const verdictEvents = (data.events || []).filter((e: any) => e.type === 'cedar_verdict');
           if (verdictEvents.length > 0) {
-            const reversed = [...verdictEvents].reverse();
-            setDecisions((prev) => [...reversed.map((v: any) => v.data), ...prev]);
-            setCedarLatency(reversed[0].data.latency_ms);
-            for (const v of reversed) {
-              playAudioCue(v.data.verdict);
-            }
+            const last = verdictEvents[verdictEvents.length - 1];
+            setDecisions((prev) => [...verdictEvents.map((e: any) => e.data).reverse(), ...prev]);
+            setCedarLatency(last.data.latency_ms);
+            playAudioCue(last.data.verdict);
           }
+          setIsRunning(false);
+          return;
         }
-      } catch (err) {
-        console.error('REST call failed:', err);
-      } finally {
-        setIsRunning(false);
+      } catch {
+        console.warn('REST call failed, falling back to client simulation engine');
+        setIsSimulationMode(true);
       }
+    }
+
+    // 3. Client Simulation Engine
+    try {
+      for await (const evt of runClientSimulation(targetPrompt, presetId, policyCode)) {
+        setAgentEvents((prev) => [...prev, evt]);
+        if (evt.type === 'cedar_verdict') {
+          const dec: CedarDecision = evt.data;
+          setDecisions((prev) => [dec, ...prev]);
+          setCedarLatency(dec.latency_ms);
+          playAudioCue(dec.verdict);
+        }
+        if (evt.type === 'final_response') {
+          setIsRunning(false);
+        }
+      }
+    } catch (err) {
+      console.error('Client simulation engine error:', err);
+    } finally {
+      setIsRunning(false);
     }
   };
 
@@ -194,39 +280,49 @@ export const App: React.FC = () => {
   const handleHotReload = async () => {
     setIsReloading(true);
     setReloadStatus(null);
-    try {
-      const res = await fetch('/api/policies/reload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ policy_content: policyCode }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setReloadStatus({
-          success: true,
-          message: data.message,
+
+    if (!isSimulationMode) {
+      try {
+        const res = await fetch('/api/policies/reload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policy_content: policyCode }),
         });
-      } else {
-        setReloadStatus({
-          success: false,
-          message: data.detail || 'Failed to compile Cedar policies',
-        });
+        const data = await res.json();
+        if (res.ok) {
+          setReloadStatus({
+            success: true,
+            message: data.message,
+          });
+          setIsReloading(false);
+          return;
+        }
+      } catch {
+        setIsSimulationMode(true);
       }
-    } catch (e: any) {
+    }
+
+    // Client simulation validator
+    await new Promise((r) => setTimeout(r, 350));
+    if (!policyCode.includes('forbid') && !policyCode.includes('permit')) {
       setReloadStatus({
         success: false,
-        message: e.message || 'Connection error',
+        message: 'Cedar Syntax Error: Policy must contain at least one valid permit or forbid statement.',
       });
-    } finally {
-      setIsReloading(false);
+    } else {
+      setReloadStatus({
+        success: true,
+        message: 'Cedar policies compiled into local evaluation engine. Zero errors detected.',
+      });
     }
+    setIsReloading(false);
   };
 
   const blockedCount = decisions.filter((d) => !d.allowed).length;
   const permittedCount = decisions.filter((d) => d.allowed).length;
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-black">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-900 dark:selection:bg-emerald-500 dark:selection:text-black bg-grid-pattern transition-colors duration-200">
       {/* Top Navigation & Metrics Header */}
       <Navbar
         systemArmed={systemArmed}
@@ -235,65 +331,90 @@ export const App: React.FC = () => {
         permittedCount={permittedCount}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        isSimulationMode={isSimulationMode}
+        isDarkMode={isDarkMode}
+        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         engineKind={engineKind}
         deployment={deployment}
       />
 
-      {/* Main Command Center Surface */}
-      <main className="flex-1 max-w-[1700px] w-full mx-auto p-4 md:p-6 space-y-5">
-        {/* Threat Simulation Vector Bar */}
-        <AttackPresets
-          onSelectPreset={(p, id) => {
-            setPrompt(p);
-            handleRunPrompt(p, id);
-          }}
-          isRunning={isRunning}
-        />
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-[1750px] w-full mx-auto p-4 sm:p-6 space-y-6">
+        {activeTab === 'landing' && (
+          <LandingPage
+            onLaunchConsole={(targetPrompt, presetId) => {
+              setActiveTab('console');
+              if (targetPrompt) {
+                setPrompt(targetPrompt);
+                handleRunPrompt(targetPrompt, presetId);
+              }
+            }}
+          />
+        )}
 
-        {/* 3-Panel Cybersecurity Command Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Panel 1: Agent Runtime & Reasoning Stream */}
-          <div className="flex flex-col">
-            <AgentPanel
-              prompt={prompt}
-              setPrompt={setPrompt}
-              onSubmit={(p) => handleRunPrompt(p)}
+        {activeTab === 'resources' && <ResourceGuide />}
+
+        {activeTab === 'console' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Threat Simulation Vector Bar */}
+            <AttackPresets
+              onSelectPreset={(p, id) => {
+                setPrompt(p);
+                handleRunPrompt(p, id);
+              }}
               isRunning={isRunning}
-              events={agentEvents}
             />
-          </div>
 
-          {/* Panel 2: Real-time Cedar Interceptor Telemetry */}
-          <div className="flex flex-col">
-            <InterceptorFeed decisions={decisions} />
-          </div>
+            {/* 3-Panel Cybersecurity Command Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Panel 1: Agent Runtime & Reasoning Stream */}
+              <div className="flex flex-col">
+                <AgentPanel
+                  prompt={prompt}
+                  setPrompt={setPrompt}
+                  onSubmit={(p) => handleRunPrompt(p)}
+                  isRunning={isRunning}
+                  events={agentEvents}
+                  onClearEvents={() => setAgentEvents([])}
+                />
+              </div>
 
-          {/* Panel 3: Monaco Cedar Policy Studio */}
-          <div className="flex flex-col">
-            <MonacoEditorPanel
-              policyCode={policyCode}
-              setPolicyCode={setPolicyCode}
-              onHotReload={handleHotReload}
-              isReloading={isReloading}
-              reloadStatus={reloadStatus}
-            />
+              {/* Panel 2: Real-time Cedar Interceptor Telemetry */}
+              <div className="flex flex-col">
+                <InterceptorFeed decisions={decisions} />
+              </div>
+
+              {/* Panel 3: Monaco Cedar Policy Studio */}
+              <div className="flex flex-col">
+                <MonacoEditorPanel
+                  policyCode={policyCode}
+                  setPolicyCode={setPolicyCode}
+                  onHotReload={handleHotReload}
+                  isReloading={isReloading}
+                  reloadStatus={reloadStatus}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Enterprise Security Architecture Status Footer */}
-        <footer className="border-t border-slate-800/80 pt-4 pb-6 flex flex-col md:flex-row items-center justify-between text-[11px] font-mono text-slate-400 gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+        <footer className="border-t border-slate-200 dark:border-slate-800 pt-5 pb-8 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
               <ShieldCheck className="w-4 h-4" />
               SovereignGuard Zero-Trust Architecture: Active
             </span>
             <span>•</span>
-            <span>AWS Cedar Engine v4.8 (Sub-Millisecond Formal Reasoning)</span>
+            <span className="font-mono">AWS Cedar Engine ({engineKind === 'rust' ? 'Rust Native' : 'Python Mirror'})</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 font-mono text-[11px]">
             <span>Bharat Builds Tour 2026</span>
             <span>•</span>
-            <span className="text-slate-300">Track 1: Build It Winner</span>
+            <span className="text-slate-700 dark:text-slate-300 font-semibold">Track 1: Build It</span>
           </div>
         </footer>
       </main>

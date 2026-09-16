@@ -246,7 +246,15 @@ permit (
 
 ---
 
-## 8. Hackathon Submission Copy
+## 8. Live Cloud Preview & Vercel Deployment
+
+SovereignGuard includes a built-in **Client-Side Simulation Engine** so hackathon evaluators and remote visitors can experience the full interactive cybersecurity command center on Vercel or AWS Amplify Hosting without needing a local backend running.
+
+**Live Deployment:** [https://sovereign-guard-sand.vercel.app](https://sovereign-guard-sand.vercel.app)
+
+---
+
+## 9. Hackathon Submission Copy
 
 **Title:**
 **SovereignGuard — Zero-Trust Policy Gateway for Local Autonomous AI Agents**
@@ -283,8 +291,7 @@ request and evaluates it against AWS Cedar policies in under a millisecond. If C
 - **FastAPI + WebSocket** — High-speed streaming gateway. The REST fallback (`POST /api/agent/run`)
   is used automatically by the UI on serverless targets where WebSockets are unavailable.
 - **React 19 + Vite + Tailwind v4 + Monaco Editor** — Command center with live policy editor
-  and real-time security intercept animations (canvas-confetti on PERMIT, red barrier glow
-  on DENY).
+  and real-time security intercept animations.
 
 **What we learned:**
 How to use AWS Cedar's formal logic (`permit` and `forbid` rules) to solve real-world AI safety
@@ -293,5 +300,5 @@ on local models without cloud bills.
 
 ---
 
-## 9. License
+## 10. License
 Apache 2.0. Built for the Bharat Builds Tour 2026.

@@ -1,0 +1,10 @@
+{
+  "name": "sovereign-guard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic Zero-Trust Firewall for Autonomous AI Agents",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev"
+  }
+}

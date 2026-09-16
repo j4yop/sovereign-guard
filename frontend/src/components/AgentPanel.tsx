@@ -1,5 +1,13 @@
 import React from 'react';
-import { Bot, Send, BrainCircuit, Terminal, CheckCircle2, AlertTriangle } from 'lucide-react';
+import {
+  Bot,
+  Send,
+  BrainCircuit,
+  Terminal,
+  CheckCircle2,
+  AlertTriangle,
+  RotateCcw
+} from 'lucide-react';
 
 interface AgentEvent {
   type: string;
@@ -18,6 +26,7 @@ interface AgentPanelProps {
   onSubmit: (p?: string) => void;
   isRunning: boolean;
   events: AgentEvent[];
+  onClearEvents?: () => void;
 }
 
 export const AgentPanel: React.FC<AgentPanelProps> = ({
@@ -26,8 +35,8 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   onSubmit,
   isRunning,
   events,
+  onClearEvents,
 }) => {
-
   const thoughts = events.filter((e) => e.type === 'thought');
   const toolCalls = events.filter((e) => e.type === 'tool_call_start');
   const toolResults = events.filter((e) => e.type === 'tool_call_result');
@@ -40,35 +49,82 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   };
 
+  const samplePrompts = [
+    'Read confidential file /app/.env',
+    'Summarize executive compensation from payroll_2026.json',
+    'Search documentation for AWS ECS Fargate deployment guide',
+  ];
+
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col h-[750px] overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col h-[760px] overflow-hidden shadow-xs transition-colors duration-200">
       {/* Panel Header */}
-      <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono">
-            Autonomous Agent Runtime
-          </h2>
+      <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-cyan-100 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800 flex items-center justify-center text-cyan-700 dark:text-cyan-400">
+            <Bot className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              Agent Runtime Stream
+            </h2>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">AWS Strands Agents SDK</span>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 relative">
-            <span className={`inline-flex h-full w-full rounded-full ${isRunning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`}></span>
-            <span className={`relative inline-flex rounded-full h-2 w-2 ${isRunning ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-          </span>
-          <span className="text-[11px] font-mono text-slate-400">
-            {isRunning ? 'Reasoning...' : 'Ready'}
-          </span>
+          {events.length > 0 && onClearEvents && (
+            <button
+              onClick={onClearEvents}
+              title="Clear event stream"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer text-[11px]"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <span className="flex h-2 w-2 relative">
+              <span className={`inline-flex h-full w-full rounded-full ${isRunning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isRunning ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+            </span>
+            <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300 font-semibold">
+              {isRunning ? 'Reasoning...' : 'Idle'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Main Stream Area */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 font-mono text-xs">
+      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 font-sans text-xs">
         {events.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-3">
-            <BrainCircuit className="w-10 h-10 text-slate-700 stroke-1" />
-            <p className="max-w-xs text-xs">
-              Agent loop is idle. Select an attack preset above or type a custom query to observe the Strands reasoning loop.
-            </p>
+          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
+              <BrainCircuit className="w-6 h-6 stroke-1" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-700 dark:text-slate-200 text-sm">Agent is standby</p>
+              <p className="text-xs text-slate-400 max-w-xs mt-1">
+                Select an attack preset from the top bar or pick a sample prompt below to observe real-time tool planning and zero-trust interception:
+              </p>
+            </div>
+
+            <div className="w-full space-y-2 max-w-sm pt-2">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                Quick Sample Queries
+              </span>
+              {samplePrompts.map((sp, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setPrompt(sp);
+                    onSubmit(sp);
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-emerald-50/50 hover:border-emerald-300 dark:hover:border-emerald-700 text-slate-600 dark:text-slate-300 text-[11px] transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span className="truncate">{sp}</span>
+                  <span className="text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 shrink-0 ml-2">&rarr;</span>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <>
@@ -76,13 +132,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {thoughts.map((t, idx) => (
               <div
                 key={`thought-${idx}`}
-                className="bg-slate-950/80 border border-slate-800/80 rounded-lg p-3 space-y-1.5 animate-in fade-in duration-300"
+                className="bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/60 rounded-xl p-3.5 space-y-1.5"
               >
-                <div className="flex items-center gap-2 text-cyan-400 font-bold text-[11px]">
+                <div className="flex items-center gap-2 text-sky-800 dark:text-sky-300 font-bold text-xs">
                   <BrainCircuit className="w-3.5 h-3.5" />
-                  <span>Agent Thought Step {idx + 1}</span>
+                  <span>Agent Reasoning Step {idx + 1}</span>
                 </div>
-                <p className="text-slate-300 text-[11px] whitespace-pre-wrap leading-relaxed">
+                <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed font-mono whitespace-pre-wrap">
                   {t.content}
                 </p>
               </div>
@@ -92,19 +148,19 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {toolCalls.map((tc, idx) => (
               <div
                 key={`tc-${idx}`}
-                className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-3 space-y-1 animate-in fade-in duration-300"
+                className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-800/60 rounded-xl p-3.5 space-y-1.5"
               >
-                <div className="flex items-center justify-between text-amber-400 font-bold text-[11px]">
+                <div className="flex items-center justify-between text-amber-900 dark:text-amber-300 font-bold text-xs">
                   <span className="flex items-center gap-1.5">
-                    <Terminal className="w-3.5 h-3.5" />
-                    Planned Tool Invocation: <code className="text-amber-300">{tc.tool}</code>
+                    <Terminal className="w-3.5 h-3.5 text-amber-600" />
+                    Planned Tool Call: <code className="bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded text-amber-900 dark:text-amber-200 font-mono text-[11px]">{tc.tool}</code>
                   </span>
-                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-amber-900/40 border border-amber-700/50">
+                  <span className="text-[9px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/60 dark:text-amber-300 font-semibold font-mono">
                     Intercepting
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400">
-                  Target Resource: <code className="text-slate-300">{tc.target || JSON.stringify(tc.args)}</code>
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+                  Target Resource: <code className="text-slate-800 dark:text-slate-200 font-semibold">{tc.target || JSON.stringify(tc.args)}</code>
                 </div>
               </div>
             ))}
@@ -113,22 +169,30 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
             {toolResults.map((tr, idx) => (
               <div
                 key={`tr-${idx}`}
-                className={`border rounded-lg p-3 space-y-1.5 animate-in fade-in duration-300 ${
+                className={`border rounded-xl p-3.5 space-y-2 transition-all ${
                   tr.blocked
-                    ? 'bg-red-950/20 border-red-800/50 text-red-300'
-                    : 'bg-emerald-950/20 border-emerald-800/50 text-emerald-300'
+                    ? 'bg-rose-50/80 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900/60 text-rose-900 dark:text-rose-200'
+                    : 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/60 text-emerald-900 dark:text-emerald-200'
                 }`}
               >
-                <div className="flex items-center justify-between font-bold text-[11px]">
+                <div className="flex items-center justify-between font-bold text-xs">
                   <span className="flex items-center gap-1.5">
-                    {tr.blocked ? <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                    {tr.blocked ? (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    )}
                     Tool Result ({tr.tool})
                   </span>
-                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700">
-                    {tr.blocked ? 'Execution Blocked' : 'Execution Success'}
+                  <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full font-bold border ${
+                    tr.blocked
+                      ? 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900 dark:text-rose-300'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900 dark:text-emerald-300'
+                  }`}>
+                    {tr.blocked ? 'Execution Aborted' : 'Execution Approved'}
                   </span>
                 </div>
-                <div className="bg-slate-950/90 rounded p-2.5 max-h-36 overflow-y-auto text-[10px] text-slate-300 font-mono whitespace-pre-wrap border border-slate-900">
+                <div className="bg-white/90 dark:bg-slate-950 p-3 rounded-lg max-h-40 overflow-y-auto text-[11px] text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap border border-slate-200/80 dark:border-slate-800 leading-relaxed">
                   {tr.result}
                 </div>
               </div>
@@ -136,12 +200,12 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
 
             {/* Final AI Response */}
             {finalResponse && (
-              <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2 animate-in fade-in duration-500">
-                <div className="flex items-center gap-2 text-slate-300 font-bold text-xs">
-                  <Bot className="w-4 h-4 text-emerald-400" />
+              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-2 shadow-2xs">
+                <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-xs">
+                  <Bot className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Agent Final Synthesis</span>
                 </div>
-                <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
                   {finalResponse.content}
                 </div>
               </div>
@@ -151,29 +215,29 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       </div>
 
       {/* Prompt Input Form */}
-      <form onSubmit={handleSubmit} className="p-3 border-t border-slate-800 bg-slate-950/80 flex gap-2">
+      <form onSubmit={handleSubmit} className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 flex gap-2">
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask agent or type prompt injection exploit..."
+          placeholder="Ask agent or type custom prompt injection exploit..."
           disabled={isRunning}
-          className="flex-1 bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-3.5 py-2.5 text-xs text-slate-200 placeholder-slate-500 outline-none font-mono"
+          className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-400 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 outline-none transition-colors shadow-2xs"
         />
         <button
           type="submit"
           disabled={isRunning || !prompt.trim()}
-          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-colors cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
         >
           {isRunning ? (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
-              Running
+              Evaluating
             </span>
           ) : (
             <>
               <Send className="w-3.5 h-3.5" />
-              Send
+              Dispatch
             </>
           )}
         </button>
